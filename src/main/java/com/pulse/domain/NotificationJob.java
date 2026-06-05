@@ -3,8 +3,6 @@ package com.pulse.domain;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -25,12 +23,12 @@ public class NotificationJob {
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private String idempotencyKey;
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(columnDefinition = "channel[]")
+    @Convert(converter = ChannelListConverter.class)
+    @Column(name = "channels", nullable = false)
     private List<Channel> channels;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "notification_status")
+    @Column(name = "status", nullable = false)
     private NotificationStatus status = NotificationStatus.PENDING;
 
     @Column(name = "recipient_email")

@@ -1,23 +1,3 @@
--- ── Enums ─────────────────────────────────────────────────────────────────────
-
-CREATE TYPE notification_status AS ENUM (
-    'PENDING',
-    'PROCESSING',
-    'DELIVERED',
-    'FAILED'
-);
-
-CREATE TYPE channel AS ENUM (
-    'EMAIL',
-    'SMS'
-);
-
-CREATE TYPE delivery_status AS ENUM (
-    'DELIVERED',
-    'FAILED',
-    'RETRYING'
-);
-
 -- ── api_keys ──────────────────────────────────────────────────────────────────
 
 CREATE TABLE api_keys (
@@ -35,8 +15,8 @@ CREATE TABLE notification_jobs (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     api_key_id           UUID         NOT NULL REFERENCES api_keys(id),
     idempotency_key      VARCHAR(255) NOT NULL UNIQUE,
-    channels             channel[]    NOT NULL,
-    status               notification_status NOT NULL DEFAULT 'PENDING',
+    channels             TEXT         NOT NULL,
+    status               VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
     recipient_email      VARCHAR(255),
     recipient_phone      VARCHAR(20),
     subject              VARCHAR(500),
@@ -50,10 +30,10 @@ CREATE TABLE notification_jobs (
 
 CREATE TABLE delivery_attempts (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    job_id              UUID            NOT NULL REFERENCES notification_jobs(id),
-    channel             channel         NOT NULL,
-    status              delivery_status NOT NULL,
-    attempt_number      INT             NOT NULL DEFAULT 1,
+    job_id              UUID        NOT NULL REFERENCES notification_jobs(id),
+    channel             VARCHAR(10) NOT NULL,
+    status              VARCHAR(20) NOT NULL,
+    attempt_number      INT         NOT NULL DEFAULT 1,
     delivered_at        TIMESTAMPTZ,
     failed_at           TIMESTAMPTZ,
     error_message       TEXT,
