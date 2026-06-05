@@ -2,6 +2,7 @@ package com.pulse.notification.service;
 
 import com.pulse.api.dto.NotificationRequest;
 import com.pulse.api.dto.NotificationResponse;
+import com.pulse.api.exception.JobNotFoundException;
 import com.pulse.domain.ApiKey;
 import com.pulse.domain.NotificationJob;
 import com.pulse.repository.NotificationJobRepository;
@@ -38,6 +39,18 @@ public class NotificationService {
                 .status(saved.getStatus())
                 .channels(saved.getChannels())
                 .createdAt(saved.getCreatedAt())
+                .build();
+    }
+
+    public NotificationResponse getJob(UUID id) {
+        NotificationJob job = jobRepository.findById(id)
+                .orElseThrow(() -> new JobNotFoundException(id));
+
+        return NotificationResponse.builder()
+                .jobId(job.getId())
+                .status(job.getStatus())
+                .channels(job.getChannels())
+                .createdAt(job.getCreatedAt())
                 .build();
     }
 }

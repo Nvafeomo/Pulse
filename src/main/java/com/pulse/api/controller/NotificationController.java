@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -34,6 +35,11 @@ public class NotificationController {
                 .orElseThrow();
 
         return notificationService.createJob(request, apiKey);
+    }
+
+    @GetMapping("/{id}")
+    public NotificationResponse getById(@PathVariable UUID id) {
+        return notificationService.getJob(id);
     }
 
     private String sha256(String input) {
