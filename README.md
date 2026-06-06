@@ -268,20 +268,6 @@ aws.sns.topicArn=arn:aws:sns:us-east-1:000000000000:pulse-notifications
 
 ---
 
-## Roadmap
-
-- [ ] SQS consumers (email via SES, SMS via Twilio)
-- [ ] Redis idempotency (`SET NX` dedup on consumer)
-- [ ] Retry with exponential backoff + jitter
-- [ ] Admin DLQ inspection and reprocessing
-- [ ] Rate limiting (100 req/min per API key)
-- [ ] Template engine
-- [ ] Scheduled notifications
-- [ ] CloudWatch metrics and structured JSON logging
-- [ ] ECS Fargate deployment + GitHub Actions CI/CD
-
----
-
 ## Author
 
 **Nvafeomo K. Konneh**
