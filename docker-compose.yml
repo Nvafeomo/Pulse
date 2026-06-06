@@ -40,6 +40,26 @@ services:
     volumes:
       - localstack-data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  aws-init:
+    image: amazon/aws-cli:latest
+    container_name: pulse-aws-init
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["/bin/bash", "/scripts/setup-localstack.sh"]
+    restart: "no"
 
 volumes:
   postgres-data:

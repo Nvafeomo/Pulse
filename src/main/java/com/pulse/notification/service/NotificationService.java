@@ -5,17 +5,22 @@ import com.pulse.api.dto.NotificationResponse;
 import com.pulse.api.exception.JobNotFoundException;
 import com.pulse.domain.ApiKey;
 import com.pulse.domain.NotificationJob;
+import com.pulse.domain.NotificationStatus;
+import com.pulse.notification.publisher.NotificationEventPublisher;
 import com.pulse.repository.NotificationJobRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationJobRepository jobRepository;
+    private final NotificationEventPublisher publisher;
 
     @Transactional
     public NotificationResponse createJob(NotificationRequest request, ApiKey apiKey) {
@@ -33,6 +38,15 @@ public class NotificationService {
         );
 
         NotificationJob saved = jobRepository.save(job);
+
+        // Publish one SNS message per channel
+        request.getChannels().forEach(channel -> {
+            String messageId = publisher.publish(saved, channel);
+            saved.setSnsMessageId(messageId);
+        });
+
+        saved.setStatus(NotificationStatus.PROCESSING);
+        jobRepository.save(saved);
 
         return NotificationResponse.builder()
                 .jobId(saved.getId())
