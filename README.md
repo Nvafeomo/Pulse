@@ -2,7 +2,7 @@
 
 **Pulse** is an event-driven notification platform for delivering messages across email and SMS using an AWS SNS fan-out architecture with per-channel SQS consumers.
 
-> *Pulse*: the signal that something happened — a heartbeat from your application to your users.
+> *Pulse*: the signal that something happened, a heartbeat from your application to your users.
 
 ---
 
@@ -61,9 +61,9 @@ flowchart TB
 
 ### Why SNS fan-out?
 
-Publishing directly to a single queue and routing by channel inside one consumer couples every channel to a single worker. SNS fan-out decouples routing entirely — each channel is an independent subscriber with its own queue, retry policy, and dead-letter queue.
+Publishing directly to a single queue and routing by channel inside one consumer couples every channel to a single worker. SNS fan-out decouples routing entirely: each channel is an independent subscriber with its own queue, retry policy, and dead-letter queue.
 
-Adding a new channel (e.g. push) means creating a new SQS queue and SNS subscription with a message filter. No changes to the producer or existing consumers. Message filter policies on the `channel` attribute ensure each queue only receives relevant events.
+Adding a new channel (such as push) means creating a new SQS queue and SNS subscription with a message filter. No changes to the producer or existing consumers. Message filter policies on the `channel` attribute ensure each queue only receives relevant events.
 
 ### Package layout
 
@@ -91,7 +91,7 @@ com.pulse/
 | **Job lifecycle** | `PENDING` → `PROCESSING` → `DELIVERED` / `FAILED`. Jobs persisted before SNS publish. |
 | **Fan-out** | One SNS message per channel with a `channel` message attribute for filter policies. |
 | **Idempotency** | Optional `idempotencyKey` on create; Redis `SET NX` dedup planned for consumers. |
-| **Channel isolation** | Separate SQS queues and DLQs per channel — a Twilio outage does not block email. |
+| **Channel isolation** | Separate SQS queues and DLQs per channel; a Twilio outage does not block email. |
 | **Local dev** | LocalStack emulates SNS, SQS, and SES; `aws-init` provisions queues and subscriptions on startup. |
 
 ### Tech stack
