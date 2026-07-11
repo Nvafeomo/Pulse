@@ -1,0 +1,5 @@
+# boto3 ships in the Lambda Python runtime already, but pinning it here keeps
+# local runs and the deployed function on the same version.
+boto3==1.34.144
+psycopg2-binary==2.9.9
+redis==5.0.7
