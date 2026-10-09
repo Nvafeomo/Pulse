@@ -93,6 +93,8 @@ def get_db_connection():
 
 
 def parse_notification(sqs_record_body: str) -> dict:
+    """Unwrap the SNS envelope in an SQS record body and return the
+    notification payload published by NotificationEventPublisher."""
     envelope = json.loads(sqs_record_body)
     return json.loads(envelope["Message"])
 
@@ -111,6 +113,8 @@ def release_claim(job_id: str, channel: str) -> None:
 
 
 def send_email(notification: dict) -> str:
+    """Send the notification as a plain-text email via SES and return the
+    SES message ID."""
     response = get_ses().send_email(
         Source=SES_SENDER,
         Destination={"ToAddresses": [notification["recipientEmail"]]},
