@@ -33,7 +33,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Skip auth for health endpoint
+        // Skip auth for actuator endpoints (health checks, etc.)
         if (request.getRequestURI().startsWith("/actuator")) {
             filterChain.doFilter(request, response);
             return;
