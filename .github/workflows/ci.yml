@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    name: JUnit tests
+    runs-on: ubuntu-latest
+
+    # The Spring context test runs Flyway migrations against a real Postgres,
+    # matching the docker-compose setup (host port 5433).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: pulse
+          POSTGRES_USER: pulse
+          POSTGRES_PASSWORD: pulse
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U pulse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw -B verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports
+          if-no-files-found: ignore
+
+  docker:
+    name: Build Docker image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: pulse:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
