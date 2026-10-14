@@ -1,9 +1,12 @@
 name: CI
 
 on:
+  # main runs this through the Deploy workflow, which reuses these jobs and
+  # only deploys once they pass.
   push:
-    branches: ["**"]
+    branches-ignore: [main]
   pull_request:
+  workflow_call:
 
 jobs:
   test:
@@ -46,6 +49,22 @@ jobs:
           name: surefire-reports
           path: target/surefire-reports
           if-no-files-found: ignore
+
+  terraform:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Check formatting
+        run: terraform fmt -check -recursive -diff
+      - name: Validate
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
 
   docker:
     name: Build Docker image
