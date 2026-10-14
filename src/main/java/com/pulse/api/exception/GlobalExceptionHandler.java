@@ -7,6 +7,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Translates exceptions thrown by controllers into JSON error responses:
+ * a missing job becomes 404 with an "error" message, and request validation
+ * failures become 400 with a per-field map of messages under "fields".
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
