@@ -1,0 +1,81 @@
+<section class="page-header">
+  <div>
+    <h1>Notification jobs</h1>
+    <p class="muted">Jobs created with your API key, newest first.</p>
+  </div>
+  <div class="header-actions">
+    <button type="button" class="secondary" (click)="load()" [disabled]="loading() || !apiKey.hasKey()">
+      Refresh
+    </button>
+    <a routerLink="/send" class="button">Send notification</a>
+  </div>
+</section>
+
+@if (!apiKey.hasKey()) {
+  <p class="notice">Enter your API key in the header to see your jobs.</p>
+} @else {
+  <div class="filters" role="group" aria-label="Filter by status">
+    <button type="button" class="chip" [class.active]="status() === null" (click)="filterBy(null)">All</button>
+    @for (s of statuses; track s) {
+      <button type="button" class="chip" [class.active]="status() === s" (click)="filterBy(s)">
+        {{ s }}
+      </button>
+    }
+  </div>
+
+  @if (error(); as message) {
+    <p class="notice error">{{ message }}</p>
+  }
+
+  @if (result(); as data) {
+    @if (data.content.length === 0) {
+      <p class="notice">No jobs yet. Send one to get started.</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Subject</th>
+              <th>Recipient</th>
+              <th>Channels</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (job of data.content; track job.jobId) {
+              <tr>
+                <td><app-status-badge [status]="job.status" /></td>
+                <td>
+                  <a [routerLink]="['/jobs', job.jobId]">{{ job.subject || '(no subject)' }}</a>
+                </td>
+                <td>{{ recipient(job) }}</td>
+                <td>{{ job.channels.join(', ') }}</td>
+                <td class="nowrap">{{ job.createdAt | date: 'MMM d, h:mm:ss a' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <nav class="pager" aria-label="Pagination">
+        <button type="button" class="secondary" (click)="goTo(page() - 1)" [disabled]="page() === 0 || loading()">
+          Previous
+        </button>
+        <span class="muted">
+          Page {{ data.page + 1 }} of {{ data.totalPages || 1 }} · {{ data.totalElements }} jobs
+        </span>
+        <button
+          type="button"
+          class="secondary"
+          (click)="goTo(page() + 1)"
+          [disabled]="page() + 1 >= data.totalPages || loading()"
+        >
+          Next
+        </button>
+      </nav>
+    }
+  } @else if (loading()) {
+    <p class="muted">Loading…</p>
+  }
+}

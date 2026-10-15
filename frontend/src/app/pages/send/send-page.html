@@ -1,0 +1,57 @@
+<section class="page-header">
+  <div>
+    <h1>Send a notification</h1>
+    <p class="muted">The API queues it on SNS and returns right away; delivery happens asynchronously.</p>
+  </div>
+</section>
+
+@if (!apiKey.hasKey()) {
+  <p class="notice">Enter your API key in the header before sending.</p>
+}
+
+<form class="card" [formGroup]="form" (ngSubmit)="submit()">
+  <fieldset>
+    <legend>Channels</legend>
+    <label class="inline"><input type="checkbox" formControlName="email" /> Email</label>
+    <label class="inline"><input type="checkbox" formControlName="sms" /> SMS</label>
+  </fieldset>
+
+  <div class="grid">
+    <label>
+      Recipient email
+      <input type="email" formControlName="recipientEmail" placeholder="user@example.com" />
+    </label>
+    <label>
+      Recipient phone
+      <input type="tel" formControlName="recipientPhone" placeholder="+15555550100" />
+    </label>
+  </div>
+
+  <label>
+    Subject
+    <input type="text" formControlName="subject" placeholder="Your order has shipped" />
+  </label>
+
+  <label>
+    Message
+    <textarea formControlName="body" rows="5" placeholder="Write the message body"></textarea>
+    @if (form.controls.body.touched && form.controls.body.invalid) {
+      <span class="field-error">A message body is required.</span>
+    }
+  </label>
+
+  <label>
+    <span>Idempotency key <span class="muted">(optional)</span></span>
+    <input type="text" formControlName="idempotencyKey" placeholder="order-1234-shipped" />
+  </label>
+
+  @if (error(); as message) {
+    <p class="notice error">{{ message }}</p>
+  }
+
+  <div class="actions">
+    <button type="submit" [disabled]="submitting() || !apiKey.hasKey()">
+      {{ submitting() ? 'Sending…' : 'Send notification' }}
+    </button>
+  </div>
+</form>

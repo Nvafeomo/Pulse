@@ -1,0 +1,36 @@
+<header class="topbar">
+  <div class="topbar-inner">
+    <a routerLink="/" class="brand">
+      <span class="pulse-dot" aria-hidden="true"></span>
+      Pulse
+    </a>
+
+    <nav>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Jobs</a>
+      <a routerLink="/send" routerLinkActive="active">Send</a>
+    </nav>
+
+    <div class="key-entry">
+      @if (apiKey.hasKey()) {
+        <span class="key-status">API key set</span>
+        <button type="button" class="secondary small" (click)="apiKey.clear()">Change</button>
+      } @else {
+        <form (submit)="$event.preventDefault(); saveKey()">
+          <input
+            type="password"
+            placeholder="X-API-Key"
+            aria-label="API key"
+            autocomplete="off"
+            [value]="draftKey()"
+            (input)="draftKey.set($any($event.target).value)"
+          />
+          <button type="submit" class="small" [disabled]="!draftKey().trim()">Save</button>
+        </form>
+      }
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <router-outlet />
+</main>

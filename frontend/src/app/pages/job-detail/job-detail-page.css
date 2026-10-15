@@ -1,0 +1,29 @@
+.back {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 24px;
+  margin: 0;
+  max-width: 640px;
+}
+
+dt {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}

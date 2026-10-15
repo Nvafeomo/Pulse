@@ -1,0 +1,34 @@
+<a routerLink="/" class="back">← All jobs</a>
+
+@if (error(); as message) {
+  <p class="notice error">{{ message }}</p>
+}
+
+@if (job(); as j) {
+  <section class="page-header">
+    <div>
+      <h1>{{ j.subject || '(no subject)' }}</h1>
+      <p class="muted mono">{{ j.jobId }}</p>
+    </div>
+    <app-status-badge [status]="j.status" />
+  </section>
+
+  @if (j.status === 'PENDING' || j.status === 'PROCESSING') {
+    <p class="muted">Waiting for delivery… this page updates automatically.</p>
+  }
+
+  <dl class="card details">
+    <dt>Channels</dt>
+    <dd>{{ j.channels.join(', ') }}</dd>
+    <dt>Recipient email</dt>
+    <dd>{{ j.recipientEmail || '—' }}</dd>
+    <dt>Recipient phone</dt>
+    <dd>{{ j.recipientPhone || '—' }}</dd>
+    <dt>Created</dt>
+    <dd>{{ j.createdAt | date: 'medium' }}</dd>
+    <dt>Last updated</dt>
+    <dd>{{ j.updatedAt | date: 'medium' }}</dd>
+  </dl>
+} @else if (!error()) {
+  <p class="muted">Loading…</p>
+}
