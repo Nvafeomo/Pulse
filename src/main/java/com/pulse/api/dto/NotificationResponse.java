@@ -14,5 +14,9 @@ public class NotificationResponse {
     private UUID jobId;
     private NotificationStatus status;
     private List<Channel> channels;
+    private String subject;
+    private String recipientEmail;
+    private String recipientPhone;
     private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

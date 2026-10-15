@@ -16,6 +16,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import com.pulse.api.dto.NotificationPage;
 
 import java.util.List;
 import java.util.Optional;
@@ -120,6 +126,46 @@ class NotificationServiceTest {
 
         assertThatThrownBy(() -> service.getJob(missing))
                 .isInstanceOf(JobNotFoundException.class);
+    }
+
+    @Test
+    void listJobs_filtersByStatusAndSortsNewestFirst() {
+        NotificationJob job = new NotificationJob();
+        job.setId(UUID.randomUUID());
+        job.setChannels(List.of(Channel.EMAIL));
+        job.setStatus(NotificationStatus.FAILED);
+        Pageable expected = PageRequest.of(1, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<NotificationJob> page = new PageImpl<>(List.of(job), expected, 11);
+        when(jobRepository.findByApiKeyAndStatus(apiKey, NotificationStatus.FAILED, expected)).thenReturn(page);
+
+        NotificationPage result = service.listJobs(apiKey, NotificationStatus.FAILED, 1, 10);
+
+        assertThat(result.content()).extracting(NotificationResponse::getJobId).containsExactly(job.getId());
+        assertThat(result.page()).isEqualTo(1);
+        assertThat(result.totalElements()).isEqualTo(11);
+        assertThat(result.totalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void listJobs_withoutStatusReturnsAllJobsForKey() {
+        when(jobRepository.findByApiKey(eq(apiKey), any(Pageable.class))).thenReturn(Page.empty());
+
+        NotificationPage result = service.listJobs(apiKey, null, 0, 20);
+
+        assertThat(result.content()).isEmpty();
+        verify(jobRepository).findByApiKey(eq(apiKey), any(Pageable.class));
+    }
+
+    @Test
+    void listJobs_capsPageSizeAndClampsNegativePage() {
+        when(jobRepository.findByApiKey(eq(apiKey), any(Pageable.class))).thenReturn(Page.empty());
+
+        service.listJobs(apiKey, null, -3, 5_000);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(jobRepository).findByApiKey(eq(apiKey), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getPageSize()).isEqualTo(NotificationService.MAX_PAGE_SIZE);
     }
 
     private NotificationRequest request(List<Channel> channels) {
