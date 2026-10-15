@@ -13,7 +13,8 @@ Pulse accepts notification jobs over a REST API, persists them to PostgreSQL, an
 ```mermaid
 flowchart TB
     subgraph clients [Clients]
-        API[REST API]
+        UI[Angular dashboard]
+        API[REST API clients]
     end
 
     subgraph app [Spring Boot 4 — com.pulse]
@@ -36,11 +37,12 @@ flowchart TB
         RD[(Redis — idempotency, rate limits)]
     end
 
-    subgraph consumers [Planned consumers]
-        EC[EmailConsumer → SES]
-        SC[SmsConsumer → Twilio]
+    subgraph consumers [Consumers]
+        EC[Email Lambda, Python → SES]
+        SC[SMS consumer → Twilio, planned]
     end
 
+    UI --> AUTH
     API --> AUTH
     AUTH --> NC
     NC --> NS
@@ -90,19 +92,37 @@ com.pulse/
 | **Auth** | API keys passed via `X-API-Key` header; stored as SHA-256 hashes in PostgreSQL. |
 | **Job lifecycle** | `PENDING` → `PROCESSING` → `DELIVERED` / `FAILED`. Jobs persisted before SNS publish. |
 | **Fan-out** | One SNS message per channel with a `channel` message attribute for filter policies. |
-| **Idempotency** | Optional `idempotencyKey` on create; Redis `SET NX` dedup planned for consumers. |
+| **Idempotency** | Optional `idempotencyKey` on create. The email Lambda claims each `(jobId, channel)` with Redis `SET NX` before sending, and releases the claim if the send fails so a retry can try again. |
 | **Channel isolation** | Separate SQS queues and DLQs per channel; a Twilio outage does not block email. |
 | **Local dev** | LocalStack emulates SNS, SQS, and SES; `aws-init` provisions queues and subscriptions on startup. |
+| **Infrastructure** | Terraform in `infra/`: VPC, ECS Fargate behind an ALB, RDS, ElastiCache, SNS/SQS with DLQs, and the email Lambda. |
+| **Releases** | GitHub Actions deploys to ECS only after the JUnit tests, Terraform validation, and Docker build pass. |
 
 ### Tech stack
 
 - Java 21, Spring Boot 4.0.6
 - PostgreSQL 16 (Docker) — jobs, API keys, delivery attempts
-- Redis 7 (Docker) — idempotency and rate limiting (planned)
+- Redis 7: idempotency claims in the email consumer
 - AWS SNS + SQS + SES via AWS SDK v2
-- LocalStack 3 — local AWS emulation
+- Python 3.12 AWS Lambda (email consumer)
+- LocalStack 3 for local AWS emulation
 - Spring Data JPA + Flyway
 - Spring Security (API key filter)
+- Angular 20 dashboard (`frontend/`)
+- Terraform, Docker, Amazon ECS Fargate (`infra/`)
+- GitHub Actions CI/CD, JUnit 5 + Mockito
+
+### Repository layout
+
+```
+.
+├── src/                  # Spring Boot API (com.pulse)
+├── lambda/email-consumer # Python Lambda: SQS → Redis claim → SES → Postgres
+├── frontend/             # Angular dashboard
+├── infra/                # Terraform for AWS
+├── scripts/              # LocalStack setup, Lambda packaging, load test
+└── .github/workflows/    # CI and deploy pipelines
+```
 
 ---
 
@@ -171,6 +191,25 @@ On Windows:
 
 Health check: `GET http://localhost:8080/actuator/health`
 
+### 4. Run the email consumer
+
+In AWS, SQS invokes the Lambda directly. Locally, a small poller plays that role:
+
+```bash
+pip install -r lambda/email-consumer/requirements.txt
+python lambda/email-consumer/local_poller.py --workers 4
+```
+
+### 5. Open the dashboard
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Visit http://localhost:4200 and enter `pulse-dev-key-local` as the API key.
+
 ---
 
 ## API overview
@@ -186,6 +225,7 @@ X-API-Key: <your-api-key>
 | Method | Path | Status | Description |
 |--------|------|--------|-------------|
 | POST | `/api/v1/notifications` | 202 | Create and enqueue a notification job |
+| GET | `/api/v1/notifications` | 200 | List your jobs, newest first (`status`, `page`, `size` up to 100) |
 | GET | `/api/v1/notifications/{id}` | 200 | Get job status by ID |
 
 **Create notification**
@@ -213,6 +253,15 @@ Response `202 Accepted`:
 }
 ```
 
+**List jobs**
+
+```bash
+curl "http://localhost:8080/api/v1/notifications?status=DELIVERED&page=0&size=20" \
+  -H "X-API-Key: pulse-dev-key-local"
+```
+
+Returns `{ "content": [...], "page": 0, "size": 20, "totalElements": 42, "totalPages": 3 }`.
+
 **Get job status**
 
 ```bash
@@ -232,7 +281,6 @@ curl http://localhost:8080/api/v1/notifications/{jobId} \
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/notifications` | List jobs with filtering and pagination |
 | POST/GET/PUT | `/api/v1/templates` | Template CRUD with variable substitution |
 | GET | `/api/v1/admin/dlq` | Inspect dead-letter queue messages |
 | POST | `/api/v1/admin/dlq/{messageId}/reprocess` | Reprocess a failed message |
@@ -246,7 +294,46 @@ curl http://localhost:8080/api/v1/notifications/{jobId} \
 2. `ApiKeyAuthFilter` validates the API key (SHA-256 lookup in PostgreSQL).
 3. `NotificationService` persists a `notification_jobs` record and publishes one SNS message per channel.
 4. SNS fans out to `email-queue` and `sms-queue` via channel filter policies.
-5. *(Planned)* Per-channel SQS consumers deliver via SES (email) or Twilio (SMS), with Redis idempotency and retry → DLQ on exhaustion.
+5. The email Lambda claims the job in Redis, sends through SES, and records the attempt in PostgreSQL. Failed messages are retried by SQS and move to the DLQ after 3 attempts. (SMS delivery through Twilio is planned.)
+
+---
+
+## Load testing
+
+`scripts/load-test/load_test.py` (standard library only) measures how many notifications per minute the API accepts and, with `--wait-for-delivery`, how many the email consumer delivers end to end.
+
+With the API and `local_poller.py` running:
+
+```bash
+python scripts/load-test/load_test.py --duration 60 --concurrency 16 --wait-for-delivery
+```
+
+It prints accepted/min, latency percentiles (p50, p95, p99), and delivered/min. Results depend on your machine and on how many poller workers you run.
+
+---
+
+## CI/CD and deployment
+
+| Workflow | Runs on | What it does |
+|----------|---------|--------------|
+| `ci.yml` | Pushes to branches and pull requests | JUnit tests against Postgres, `terraform fmt` and `validate`, Angular build, Docker build |
+| `deploy.yml` | Pushes to `main` | Reruns CI, then (only if it passes) pushes the image to ECR, runs `terraform apply`, waits for the ECS rollout, and checks `/actuator/health` |
+
+The deploy job is skipped until these repository secrets exist:
+
+- `AWS_DEPLOY_ROLE_ARN`: IAM role GitHub Actions assumes through OIDC
+- `TF_STATE_BUCKET`: S3 bucket for Terraform state
+
+To deploy by hand:
+
+```bash
+./scripts/build-lambda.sh
+cd infra
+terraform init -backend-config="bucket=<state-bucket>" -backend-config="key=pulse/dev.tfstate"
+terraform apply -var="image_tag=<image-tag>"
+```
+
+The dev stack (NAT gateway, RDS, ElastiCache, ALB) costs money while it runs. Use `terraform destroy` when you are done.
 
 ---
 
