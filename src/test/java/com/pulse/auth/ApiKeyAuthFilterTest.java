@@ -73,7 +73,20 @@ class ApiKeyAuthFilterTest {
 
         assertThat(chain.getRequest()).isNotNull();
         assertThat(key.getLastUsedAt()).isNotNull();
+        assertThat(request.getAttribute(ApiKeyAuthFilter.API_KEY_ATTRIBUTE)).isSameAs(key);
         verify(apiKeyRepository).save(key);
+    }
+
+    @Test
+    void letsCorsPreflightThroughWithoutApiKey() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/v1/notifications");
+        request.setRequestURI("/api/v1/notifications");
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        verifyNoInteractions(apiKeyRepository);
     }
 
     @Test

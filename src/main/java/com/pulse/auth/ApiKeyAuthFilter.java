@@ -25,6 +25,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String API_KEY_HEADER = "X-API-Key";
 
+    /** Request attribute holding the authenticated {@link ApiKey}, read by controllers. */
+    public static final String API_KEY_ATTRIBUTE = "pulse.apiKey";
+
     private final ApiKeyRepository apiKeyRepository;
 
     @Override
@@ -33,8 +36,10 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Skip auth for actuator endpoints (health checks, etc.)
-        if (request.getRequestURI().startsWith("/actuator")) {
+        // Skip auth for actuator endpoints (health checks) and CORS preflight
+        // requests, which browsers send without custom headers.
+        if (request.getRequestURI().startsWith("/actuator")
+                || "OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -59,6 +64,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         key.setLastUsedAt(OffsetDateTime.now());
         apiKeyRepository.save(key);
 
+        request.setAttribute(API_KEY_ATTRIBUTE, key);
         filterChain.doFilter(request, response);
     }
 
