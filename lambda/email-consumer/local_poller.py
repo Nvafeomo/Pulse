@@ -58,7 +58,9 @@ def to_lambda_event(messages: list[dict]) -> dict:
 
 
 def worker(stop: threading.Event, stats: dict, lock: threading.Lock) -> None:
-    sqs = boto3.client("sqs", region_name="us-east-1", endpoint_url=ENDPOINT)
+    """Poll the queue until `stop` is set, deleting messages the handler
+    processed successfully and tallying results into `stats` under `lock`."""
+    sqs =boto3.client("sqs", region_name="us-east-1", endpoint_url=ENDPOINT)
 
     while not stop.is_set():
         response = sqs.receive_message(
