@@ -6,6 +6,12 @@ import lombok.Setter;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * A single attempt to deliver a {@link NotificationJob} over one
+ * {@link Channel}, stored in the {@code delivery_attempts} table.
+ * Records the attempt number, outcome timestamps, any error message,
+ * and the message ID returned by the delivery provider.
+ */
 @Entity
 @Table(name = "delivery_attempts")
 @Getter @Setter
