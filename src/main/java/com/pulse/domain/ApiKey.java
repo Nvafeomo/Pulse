@@ -6,6 +6,11 @@ import lombok.Setter;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * A client credential for the Pulse API, stored in the {@code api_keys} table.
+ * Only the SHA-256 hash of the raw key is persisted. Inactive keys are rejected
+ * at authentication, and {@code lastUsedAt} is refreshed on each accepted request.
+ */
 @Entity
 @Table(name = "api_keys")
 @Getter @Setter
