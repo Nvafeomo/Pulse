@@ -7,6 +7,14 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A notification requested through the API, stored in the
+ * {@code notification_jobs} table. Holds the owning {@link ApiKey}, the target
+ * {@link Channel}s, the recipient details, the message content, and the
+ * current {@link NotificationStatus}. {@code snsMessageId} keeps only the ID of
+ * the most recently published SNS message, since one message is published per
+ * channel. {@code updatedAt} is refreshed on every update by {@link #onUpdate()}.
+ */
 @Entity
 @Table(name = "notification_jobs")
 @Getter @Setter
