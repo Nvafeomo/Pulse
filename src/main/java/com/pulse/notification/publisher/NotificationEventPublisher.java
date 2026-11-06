@@ -15,6 +15,10 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Publishes notification events to the SNS topic, one message per channel.
+ * Each message carries a {@code channel} attribute alongside its JSON payload.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -30,6 +34,13 @@ public class NotificationEventPublisher {
     @Value("${aws.sns.topicArn}")
     private String topicArn;
 
+    /**
+     * Publishes one event for the given job and channel.
+     *
+     * @param job the notification job to publish
+     * @param channel the delivery channel this event targets
+     * @return the message ID assigned by SNS
+     */
     public String publish(NotificationJob job, Channel channel) {
         PublishRequest request = PublishRequest.builder()
                 .topicArn(topicArn)
