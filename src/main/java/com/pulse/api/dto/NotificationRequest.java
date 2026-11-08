@@ -8,6 +8,12 @@ import lombok.Getter;
 import lombok.Setter;
 import java.util.List;
 
+/**
+ * Request body for creating a notification job.
+ * <p>
+ * {@code channels} and {@code body} are required. When {@code idempotencyKey}
+ * is omitted, the service generates a random one for the job.
+ */
 @Getter @Setter
 public class NotificationRequest {
 
