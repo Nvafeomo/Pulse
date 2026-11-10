@@ -8,6 +8,12 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * API view of a notification job, returned when a job is created or fetched.
+ * <p>
+ * Built from a {@code NotificationJob} entity; the message body and
+ * idempotency key are not included.
+ */
 @Getter
 @Builder
 public class NotificationResponse {
