@@ -12,6 +12,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Stateless Spring Security setup for the API. CSRF and sessions are off
+ * because clients authenticate per request; Spring's own authorization
+ * permits everything and {@link ApiKeyAuthFilter} enforces the
+ * {@code X-API-Key} check instead. CORS rules come from {@link CorsConfig}.
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
