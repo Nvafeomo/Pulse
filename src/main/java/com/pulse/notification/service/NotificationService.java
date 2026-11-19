@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
+/**
+ * Creates, fetches, and lists notification jobs on behalf of API callers.
+ */
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -26,6 +29,15 @@ public class NotificationService {
     private final NotificationJobRepository jobRepository;
     private final NotificationEventPublisher publisher;
 
+    /**
+     * Saves a new job for the given API key, publishes one SNS message per
+     * requested channel, and marks the job {@code PROCESSING}. A random
+     * idempotency key is generated when the request does not supply one.
+     *
+     * @param request the notification to send
+     * @param apiKey  the API key submitting the job
+     * @return the saved job
+     */
     @Transactional
     public NotificationResponse createJob(NotificationRequest request, ApiKey apiKey) {
         NotificationJob job = new NotificationJob();
@@ -55,6 +67,13 @@ public class NotificationService {
         return toResponse(saved);
     }
 
+    /**
+     * Returns the job with the given ID.
+     *
+     * @param id the job ID
+     * @return the matching job
+     * @throws JobNotFoundException if no job has that ID
+     */
     public NotificationResponse getJob(UUID id) {
         NotificationJob job = jobRepository.findById(id)
                 .orElseThrow(() -> new JobNotFoundException(id));
