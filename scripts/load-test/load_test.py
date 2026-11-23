@@ -28,6 +28,12 @@ from urllib.parse import urlparse
 
 
 def send_requests(base, api_key, deadline, results, lock, counter):
+    """Worker thread: POST notifications until `deadline`, then merge this
+    thread's accepted/error counts and latencies into `results`.
+
+    `counter` is a shared one-element list used to give every request a
+    unique number; `lock` guards both it and `results`.
+    """
     url = urlparse(base)
     conn = http.client.HTTPConnection(url.hostname, url.port or 80, timeout=10)
     headers = {"Content-Type": "application/json", "X-API-Key": api_key}
@@ -66,6 +72,7 @@ def send_requests(base, api_key, deadline, results, lock, counter):
 
 
 def delivered_count(base, api_key):
+    """Return the total number of DELIVERED jobs reported by the list endpoint."""
     url = urlparse(base)
     conn = http.client.HTTPConnection(url.hostname, url.port or 80, timeout=10)
     conn.request(
@@ -82,6 +89,7 @@ def delivered_count(base, api_key):
 
 
 def percentile(values, pct):
+    """Return the nearest-rank `pct` percentile of `values` (0.0 if empty)."""
     if not values:
         return 0.0
     ordered = sorted(values)
