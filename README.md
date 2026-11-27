@@ -39,7 +39,7 @@ flowchart TB
 
     subgraph consumers [Consumers]
         EC[Email Lambda, Python → SES]
-        SC[SMS consumer → Twilio, planned]
+        SC[SMS Lambda, Python → Twilio]
     end
 
     UI --> AUTH
@@ -92,19 +92,20 @@ com.pulse/
 | **Auth** | API keys passed via `X-API-Key` header; stored as SHA-256 hashes in PostgreSQL. |
 | **Job lifecycle** | `PENDING` → `PROCESSING` → `DELIVERED` / `FAILED`. Jobs persisted before SNS publish. |
 | **Fan-out** | One SNS message per channel with a `channel` message attribute for filter policies. |
-| **Idempotency** | Optional `idempotencyKey` on create. The email Lambda claims each `(jobId, channel)` with Redis `SET NX` before sending, and releases the claim if the send fails so a retry can try again. |
+| **Idempotency** | Optional `idempotencyKey` on create. Each consumer Lambda claims each `(jobId, channel)` with Redis `SET NX` before sending, and releases the claim if the send fails so a retry can try again. |
+| **Permanent vs. retryable failures** | The SMS Lambda retries only failures that can succeed later (Twilio 5xx, 429, network errors). A missing phone number or a Twilio 4xx marks the job `FAILED` at once instead of burning 3 retries. |
 | **Channel isolation** | Separate SQS queues and DLQs per channel; a Twilio outage does not block email. |
 | **Local dev** | LocalStack emulates SNS, SQS, and SES; `aws-init` provisions queues and subscriptions on startup. |
-| **Infrastructure** | Terraform in `infra/`: VPC, ECS Fargate behind an ALB, RDS, ElastiCache, SNS/SQS with DLQs, and the email Lambda. |
+| **Infrastructure** | Terraform in `infra/`: VPC, ECS Fargate behind an ALB, RDS, ElastiCache, SNS/SQS with DLQs, and the email and SMS Lambdas. |
 | **Releases** | GitHub Actions deploys to ECS only after the JUnit tests, Terraform validation, and Docker build pass. |
 
 ### Tech stack
 
 - Java 21, Spring Boot 4.0.6
 - PostgreSQL 16 (Docker) — jobs, API keys, delivery attempts
-- Redis 7: idempotency claims in the email consumer
+- Redis 7: idempotency claims in the email and SMS consumers
 - AWS SNS + SQS + SES via AWS SDK v2
-- Python 3.12 AWS Lambda (email consumer)
+- Python 3.12 AWS Lambdas (email and SMS consumers), Twilio Messages API for SMS
 - LocalStack 3 for local AWS emulation
 - Spring Data JPA + Flyway
 - Spring Security (API key filter)
@@ -118,6 +119,7 @@ com.pulse/
 .
 ├── src/                  # Spring Boot API (com.pulse)
 ├── lambda/email-consumer # Python Lambda: SQS → Redis claim → SES → Postgres
+├── lambda/sms-consumer   # Python Lambda: SQS → Redis claim → Twilio → Postgres
 ├── frontend/             # Angular dashboard
 ├── infra/                # Terraform for AWS
 ├── scripts/              # LocalStack setup, Lambda packaging, load test
@@ -191,14 +193,21 @@ On Windows:
 
 Health check: `GET http://localhost:8080/actuator/health`
 
-### 4. Run the email consumer
+### 4. Run the consumers
 
-In AWS, SQS invokes the Lambda directly. Locally, a small poller plays that role:
+In AWS, SQS invokes each Lambda directly. Locally, a small poller per channel plays that role:
 
 ```bash
 pip install -r lambda/email-consumer/requirements.txt
 python lambda/email-consumer/local_poller.py --workers 4
+
+# In a second terminal. SMS is logged instead of sent unless you export
+# TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER and SMS_DRY_RUN=false.
+pip install -r lambda/sms-consumer/requirements.txt
+python lambda/sms-consumer/local_poller.py --workers 2
 ```
+
+Run the SMS consumer's unit tests with `python -m unittest discover lambda/sms-consumer`.
 
 ### 5. Open the dashboard
 
@@ -294,7 +303,7 @@ curl http://localhost:8080/api/v1/notifications/{jobId} \
 2. `ApiKeyAuthFilter` validates the API key (SHA-256 lookup in PostgreSQL).
 3. `NotificationService` persists a `notification_jobs` record and publishes one SNS message per channel.
 4. SNS fans out to `email-queue` and `sms-queue` via channel filter policies.
-5. The email Lambda claims the job in Redis, sends through SES, and records the attempt in PostgreSQL. Failed messages are retried by SQS and move to the DLQ after 3 attempts. (SMS delivery through Twilio is planned.)
+5. The email Lambda claims the job in Redis, sends through SES, and records the attempt in PostgreSQL. The SMS Lambda does the same through Twilio. Failed messages are retried by SQS and move to the DLQ after 3 attempts.
 
 ---
 
@@ -316,13 +325,15 @@ It prints accepted/min, latency percentiles (p50, p95, p99), and delivered/min. 
 
 | Workflow | Runs on | What it does |
 |----------|---------|--------------|
-| `ci.yml` | Pushes to branches and pull requests | JUnit tests against Postgres, `terraform fmt` and `validate`, Angular build, Docker build |
+| `ci.yml` | Pushes to branches and pull requests | JUnit tests against Postgres, SMS Lambda unit tests, `terraform fmt` and `validate`, Angular build, Docker build |
 | `deploy.yml` | Pushes to `main` | Reruns CI, then (only if it passes) pushes the image to ECR, runs `terraform apply`, waits for the ECS rollout, and checks `/actuator/health` |
 
 The deploy job is skipped until these repository secrets exist:
 
 - `AWS_DEPLOY_ROLE_ARN`: IAM role GitHub Actions assumes through OIDC
 - `TF_STATE_BUCKET`: S3 bucket for Terraform state
+
+Optional: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM_NUMBER` turn on real SMS delivery. Without them the SMS Lambda deploys in dry-run mode and logs messages instead of sending them.
 
 To deploy by hand:
 

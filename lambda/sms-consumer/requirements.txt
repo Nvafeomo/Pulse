@@ -1,0 +1,4 @@
+# Twilio is called with urllib from the standard library, so the only
+# dependencies are the Postgres and Redis clients the email consumer uses too.
+psycopg2-binary==2.9.9
+redis==5.0.7

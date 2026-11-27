@@ -66,7 +66,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Package email Lambda
+      - name: Package Lambda consumers
         working-directory: .
         run: ./scripts/build-lambda.sh
 
@@ -103,6 +103,11 @@ jobs:
           fi
 
       - name: Terraform apply
+        # Without the Twilio secrets, the SMS Lambda deploys in dry-run mode.
+        env:
+          TF_VAR_twilio_account_sid: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TF_VAR_twilio_auth_token: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TF_VAR_twilio_from_number: ${{ secrets.TWILIO_FROM_NUMBER }}
         run: |
           terraform apply -input=false -auto-approve \
             -var="aws_region=$AWS_REGION" -var="environment=$ENVIRONMENT" \
