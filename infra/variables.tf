@@ -53,7 +53,7 @@ variable "redis_node_type" {
 }
 
 variable "sqs_max_receive_count" {
-  description = "Deliveries before a message moves to its dead-letter queue. Must match MAX_RECEIVE_COUNT in the email Lambda."
+  description = "Deliveries before a message moves to its dead-letter queue. Must match MAX_RECEIVE_COUNT in the email and SMS Lambdas."
   type        = number
   default     = 3
 }
@@ -65,9 +65,34 @@ variable "ses_sender" {
 }
 
 variable "lambda_build_dir" {
-  description = "Directory containing handler.py plus its pip-installed dependencies (built by the deploy workflow)."
+  description = "Directory containing the email consumer's handler.py plus its pip-installed dependencies (built by the deploy workflow)."
   type        = string
   default     = "../build/email-consumer"
+}
+
+variable "sms_lambda_build_dir" {
+  description = "Directory containing the SMS consumer's handler.py plus its pip-installed dependencies (built by the deploy workflow)."
+  type        = string
+  default     = "../build/sms-consumer"
+}
+
+variable "twilio_account_sid" {
+  description = "Twilio account SID for the SMS Lambda. Leave empty to run SMS in dry-run mode (logged, not sent)."
+  type        = string
+  default     = ""
+}
+
+variable "twilio_auth_token" {
+  description = "Twilio auth token for the SMS Lambda."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "twilio_from_number" {
+  description = "Twilio phone number the SMS Lambda sends from, in E.164 format (+15555550100)."
+  type        = string
+  default     = ""
 }
 
 variable "log_retention_days" {

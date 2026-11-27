@@ -66,6 +66,19 @@ jobs:
           terraform init -backend=false -input=false
           terraform validate
 
+  lambda-tests:
+    name: Lambda consumer tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r lambda/sms-consumer/requirements.txt
+      - name: Run SMS consumer tests
+        run: python -m unittest discover lambda/sms-consumer -v
+
   frontend:
     name: Build Angular dashboard
     runs-on: ubuntu-latest
